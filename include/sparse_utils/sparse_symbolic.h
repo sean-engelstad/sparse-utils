@@ -6,9 +6,9 @@
 #include <set>
 #include <vector>
 
-#include "sparse_amd.h"
+// #include "sparse_amd.h"
 #include "sparse_matrix.h"
-#include "utils/a2dprofiler.h"
+// #include "utils/a2dprofiler.h"
 
 namespace SparseUtils {
 
@@ -42,6 +42,7 @@ void SortCSRData(index_t nrows, ArrayType& rowp, ArrayType& cols) {
 /*
   Add the connectivity from a connectivity list, use Kokkos unordered set
 */
+#if 0
 template <class ConnArray>
 void BSRMatAddConnectivity(ConnArray& conn,
                            Kokkos::UnorderedMap<COO, void>& node_set) {
@@ -69,7 +70,9 @@ void BSRMatAddConnectivity(ConnArray& conn,
     throw std::runtime_error(msg);
   }
 }
+#endif
 
+#if 0
 /*
   Create a BSRMat from the set of node pairs, use Kokkos unordered set
 */
@@ -145,6 +148,7 @@ BSRMat<T, M, M>* BSRMatFromNodeSet(index_t nnodes,
 
   return A;
 }
+#endif
 
 #if 0
 /*
@@ -364,83 +368,83 @@ index_t CSRFactorSymbolic(const index_t nrows, const VecType Arowp,
 /*
   Find the reordering to reduce the fill in during factorization
 */
-template <typename T, index_t M>
-BSRMat<T, M, M>* BSRMatAMDFactorSymbolic(BSRMat<T, M, M>& A,
-                                         double fill_factor = 5.0) {
-  // Copy over the non-zero structure of the matrix
-  int nrows = A.nbrows;
-  IdxArray1D_t rowp("rowp", A.nbrows + 1);
-  IdxArray1D_t cols("cols", A.nnz);
-  IdxArray1D_t perm_("perm_", A.nbrows);
+// template <typename T, index_t M>
+// BSRMat<T, M, M>* BSRMatAMDFactorSymbolic(BSRMat<T, M, M>& A,
+//                                          double fill_factor = 5.0) {
+//   // Copy over the non-zero structure of the matrix
+//   int nrows = A.nbrows;
+//   IdxArray1D_t rowp("rowp", A.nbrows + 1);
+//   IdxArray1D_t cols("cols", A.nnz);
+//   IdxArray1D_t perm_("perm_", A.nbrows);
 
-  // Copy the values to rowp and cols
-  BLAS::copy(rowp, A.rowp);
-  BLAS::copy(cols, A.cols);
+//   // Copy the values to rowp and cols
+//   BLAS::copy(rowp, A.rowp);
+//   BLAS::copy(cols, A.cols);
 
-  // Compute the re-ordering
-  int* interface_nodes = NULL;
-  int ninterface_nodes = 0;
-  int ndep_vars = 0;
-  int* dep_vars = NULL;
-  int* indep_ptr = NULL;
-  int* indep_vars = NULL;
-  int use_exact_degree = 0;
-  amd_order_interface(nrows, (int*)rowp.data(), (int*)cols.data(),
-                      (int*)perm_.data(), interface_nodes, ninterface_nodes,
-                      ndep_vars, dep_vars, indep_ptr, indep_vars,
-                      use_exact_degree);
+//   // Compute the re-ordering
+//   int* interface_nodes = NULL;
+//   int ninterface_nodes = 0;
+//   int ndep_vars = 0;
+//   int* dep_vars = NULL;
+//   int* indep_ptr = NULL;
+//   int* indep_vars = NULL;
+//   int use_exact_degree = 0;
+//   amd_order_interface(nrows, (int*)rowp.data(), (int*)cols.data(),
+//                       (int*)perm_.data(), interface_nodes, ninterface_nodes,
+//                       ndep_vars, dep_vars, indep_ptr, indep_vars,
+//                       use_exact_degree);
 
-  // Set up the factorization
-  // perm[new var] = old_var
-  // iperm[old var] = new var
+//   // Set up the factorization
+//   // perm[new var] = old_var
+//   // iperm[old var] = new var
 
-  // Set the permutation array
-  IdxArray1D_t perm("perm", A.nbrows);
-  IdxArray1D_t iperm("iperm", A.nbrows);
-  BLAS::copy(perm, perm_);
+//   // Set the permutation array
+//   IdxArray1D_t perm("perm", A.nbrows);
+//   IdxArray1D_t iperm("iperm", A.nbrows);
+//   BLAS::copy(perm, perm_);
 
-  for (index_t i = 0; i < A.nbrows; i++) {
-    iperm[perm[i]] = i;
-  }
+//   for (index_t i = 0; i < A.nbrows; i++) {
+//     iperm[perm[i]] = i;
+//   }
 
-  // Allocate the new arrays for re-ordering the vector
-  IdxArray1D_t Arowp("Arowp", A.nbrows + 1);
-  IdxArray1D_t Acols("Acols", A.nnz);
+//   // Allocate the new arrays for re-ordering the vector
+//   IdxArray1D_t Arowp("Arowp", A.nbrows + 1);
+//   IdxArray1D_t Acols("Acols", A.nnz);
 
-  // Re-order the matrix
-  Arowp[0] = 0;
-  index_t nnz = 0;
-  for (index_t i = 0; i < A.nbrows;
-       i++) {  // Loop over the new rows of the matrix
-    index_t iold = perm[i];
+//   // Re-order the matrix
+//   Arowp[0] = 0;
+//   index_t nnz = 0;
+//   for (index_t i = 0; i < A.nbrows;
+//        i++) {  // Loop over the new rows of the matrix
+//     index_t iold = perm[i];
 
-    // Find the old column numbres and convert them to new ones
-    for (index_t jp = A.rowp[iold]; jp < A.rowp[iold + 1]; jp++, nnz++) {
-      Acols[nnz] = iperm[A.cols[jp]];
-    }
+//     // Find the old column numbres and convert them to new ones
+//     for (index_t jp = A.rowp[iold]; jp < A.rowp[iold + 1]; jp++, nnz++) {
+//       Acols[nnz] = iperm[A.cols[jp]];
+//     }
 
-    // After copying, update the size
-    Arowp[i + 1] = Arowp[i] + (A.rowp[iold + 1] - A.rowp[iold]);
-  }
+//     // After copying, update the size
+//     Arowp[i + 1] = Arowp[i] + (A.rowp[iold + 1] - A.rowp[iold]);
+//   }
 
-  // Sort the data for the permuted matrix
-  SortCSRData(A.nbrows, Arowp, Acols);
+//   // Sort the data for the permuted matrix
+//   SortCSRData(A.nbrows, Arowp, Acols);
 
-  // Compute the symbolic matrix
-  std::vector<index_t> Afrowp(A.nbrows + 1);
-  std::vector<index_t> Afcols(index_t(fill_factor * nnz));
+//   // Compute the symbolic matrix
+//   std::vector<index_t> Afrowp(A.nbrows + 1);
+//   std::vector<index_t> Afcols(index_t(fill_factor * nnz));
 
-  index_t Afnnz = CSRFactorSymbolic(A.nbrows, Arowp, Acols, Afrowp, Afcols);
+//   index_t Afnnz = CSRFactorSymbolic(A.nbrows, Arowp, Acols, Afrowp, Afcols);
 
-  BSRMat<T, M, M>* Afactor =
-      new BSRMat<T, M, M>(A.nbrows, A.nbrows, Afnnz, Afrowp, Afcols);
+//   BSRMat<T, M, M>* Afactor =
+//       new BSRMat<T, M, M>(A.nbrows, A.nbrows, Afnnz, Afrowp, Afcols);
 
-  // Set up the non-zero pattern for the new matrix
-  Afactor->perm = perm;
-  Afactor->iperm = iperm;
+//   // Set up the non-zero pattern for the new matrix
+//   Afactor->perm = perm;
+//   Afactor->iperm = iperm;
 
-  return Afactor;
-}
+//   return Afactor;
+// }
 
 /*
   Symbolic factorization stage
@@ -462,6 +466,7 @@ BSRMat<T, M, M>* BSRMatFactorSymbolic(BSRMat<T, M, M>& A,
 /*
   Compute the non-zero pattern for C = A * B
 */
+#if 0
 template <typename T, index_t M, index_t N, index_t P>
 BSRMat<T, M, P>* BSRMatMatMultSymbolic(BSRMat<T, M, N>& A, BSRMat<T, N, P>& B,
                                        double fill_factor = 2.0) {
@@ -525,10 +530,12 @@ BSRMat<T, M, P>* BSRMatMatMultSymbolic(BSRMat<T, M, N>& A, BSRMat<T, N, P>& B,
 
   return bsr;
 }
+#endif
 
 /*
   Compute the non-zero pattern for C = S + A * B
 */
+#if 0
 template <typename T, index_t M, index_t N, index_t P>
 BSRMat<T, M, P>* BSRMatMatMultAddSymbolic(BSRMat<T, M, P>& S,
                                           BSRMat<T, M, N>& A,
@@ -604,6 +611,7 @@ BSRMat<T, M, P>* BSRMatMatMultAddSymbolic(BSRMat<T, M, P>& S,
 
   return bsr;
 }
+#endif
 
 /*
   Compute the non-zero pattern of the transpose of the matrix
@@ -645,7 +653,8 @@ BSRMat<T, N, M>* BSRMatMakeTransposeSymbolic(BSRMat<T, M, N>& A) {
   rowp[0] = 0;
 
   // Create the new BSR matrix
-  BSRMat<T, N, M>* At = new BSRMat<T, N, M>(nrows, ncols, nnz, rowp, cols);
+  BSRMat<T, N, M>* At =
+      new BSRMat<T, N, M>(nrows, ncols, nnz, rowp.data(), cols.data());
 
   return At;
 }
@@ -693,6 +702,7 @@ BSRMat<T, M, N>* BSRMatDuplicate(BSRMat<T, M, N>& A) {
 /*
   Multicolor code for a single process using a greedy algorithm
 */
+#if 0
 template <class VecType>
 index_t CSRMultiColorOrder(const index_t nvars, const index_t rowp[],
                            const index_t cols[], VecType colors, VecType perm) {
@@ -754,7 +764,9 @@ index_t CSRMultiColorOrder(const index_t nvars, const index_t rowp[],
 
   return num_colors;
 }
+#endif
 
+#if 0
 template <typename T, index_t M>
 void BSRMatMultiColorOrder(BSRMat<T, M, M>& A) {
   A.perm = IdxArray1D_t("A.perm", A.nbrows);
@@ -772,6 +784,7 @@ void BSRMatMultiColorOrder(BSRMat<T, M, M>& A) {
     A.color_count[colors[i]]++;
   }
 }
+#endif
 
 }  // namespace SparseUtils
 
